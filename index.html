@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>16.0 文案优化工作台</title>
+  <style>
+    :root {
+      --ink: #111111;
+      --text: #242424;
+      --muted: #7c7f84;
+      --quiet: #a7aaae;
+      --line: #e5e6e8;
+      --line-soft: #eeeeef;
+      --bg: #eff0f2;
+      --panel: rgba(255, 255, 255, 0.86);
+      --card: #ffffff;
+      --chip: #f5f5f4;
+      --focus: rgba(17, 17, 17, 0.12);
+      --shadow: 0 24px 70px rgba(18, 18, 18, 0.08);
+      --small-shadow: 0 12px 34px rgba(18, 18, 18, 0.06);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 48% -4%, rgba(140, 168, 214, 0.26), transparent 27%),
+        linear-gradient(180deg, #f6f6f5 0%, var(--bg) 100%);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button,
+    textarea,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    .shell {
+      width: min(1280px, calc(100vw - 48px));
+      min-height: calc(100vh - 80px);
+      margin: 40px auto;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 26px;
+      background: rgba(248, 248, 247, 0.78);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar {
+      height: 76px;
+      display: grid;
+      grid-template-columns: 220px 1fr 220px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: rgba(250, 250, 249, 0.62);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-left: 28px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      background: #111;
+      color: #fff;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .breadcrumb {
+      color: var(--quiet);
+      font-size: 13px;
+    }
+
+    .breadcrumb strong {
+      margin-left: 6px;
+      color: var(--ink);
+      font-weight: 680;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-right: 24px;
+    }
+
+    .icon-btn,
+    .btn {
+      border: 1px solid var(--line-soft);
+      background: rgba(255, 255, 255, 0.82);
+      box-shadow: 0 6px 18px rgba(18, 18, 18, 0.04);
+      cursor: pointer;
+      transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .btn {
+      height: 42px;
+      border-radius: 999px;
+      padding: 0 18px;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .icon-btn:hover,
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: #d6d7da;
+      background: #fff;
+    }
+
+    .btn.primary {
+      border-color: #111;
+      background: #111;
+      color: #fff;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr) 336px;
+      min-height: calc(100vh - 156px);
+    }
+
+    .sidebar,
+    .rightbar {
+      background: rgba(245, 245, 244, 0.62);
+    }
+
+    .sidebar {
+      padding: 26px 22px;
+      border-right: 1px solid var(--line);
+    }
+
+    .rightbar {
+      padding: 26px 24px;
+      border-left: 1px solid var(--line);
+    }
+
+    .nav-title,
+    .panel-title {
+      margin: 0 0 14px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .category-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .category-card {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      background: transparent;
+      padding: 11px 10px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .category-card:hover {
+      background: rgba(255, 255, 255, 0.64);
+    }
+
+    .category-card.active {
+      border-color: var(--line);
+      background: #fff;
+      box-shadow: var(--small-shadow);
+    }
+
+    .category-index {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      background: #ececeb;
+      color: #54565a;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .category-card.active .category-index {
+      background: #111;
+      color: #fff;
+    }
+
+    .category-name {
+      display: block;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 760;
+      line-height: 1.25;
+    }
+
+    .category-desc {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .workspace {
+      padding: 28px;
+    }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 20px;
+    }
+
+    .intro h1 {
+      margin: 0;
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", "Songti SC", serif;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .intro p {
+      max-width: 440px;
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .status-pill {
+      align-self: start;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      padding: 10px 14px;
+      color: #585b60;
+      font-size: 12px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .editor-card,
+    .result-card,
+    .rule-card {
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius-xl);
+      background: var(--card);
+      box-shadow: var(--small-shadow);
+    }
+
+    .editor-card {
+      padding: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #54565a;
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    select,
+    input,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      outline: none;
+      background: #f8f8f7;
+      color: var(--ink);
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    select,
+    input {
+      height: 48px;
+      padding: 0 14px;
+    }
+
+    textarea {
+      min-height: 132px;
+      resize: vertical;
+      padding: 14px;
+      line-height: 1.65;
+    }
+
+    #copyInput {
+      min-height: 158px;
+      font-size: 16px;
+    }
+
+    select:focus,
+    input:focus,
+    textarea:focus {
+      border-color: #bfc1c4;
+      background: #fff;
+      box-shadow: 0 0 0 5px var(--focus);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .mini-guide {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .mini-card {
+      min-height: 104px;
+      border: 1px solid var(--line-soft);
+      border-radius: var(--radius-lg);
+      background: #f7f7f6;
+      padding: 14px;
+    }
+
+    .mini-card strong {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .mini-card span {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .rule-card,
+    .result-card {
+      padding: 18px;
+    }
+
+    .rule-card + .result-card {
+      margin-top: 16px;
+    }
+
+    .rule-list {
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px;
+      list-style: none;
+    }
+
+    .rule-list li {
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      background: #f8f8f7;
+      padding: 10px 11px;
+      color: #4e5156;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .result-box {
+      min-height: 352px;
+      max-height: calc(100vh - 344px);
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid var(--line-soft);
+      border-radius: 18px;
+      background: #f8f8f7;
+      padding: 14px;
+      color: #303236;
+      font-size: 13px;
+      line-height: 1.72;
+    }
+
+    .empty {
+      color: var(--quiet);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 30px;
+      transform: translateX(-50%);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+      background: #111;
+      color: #fff;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+      padding: 10px 16px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+    }
+
+    @media (max-width: 1100px) {
+      .shell {
+        width: min(100vw - 28px, 920px);
+        margin: 20px auto;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr auto;
+      }
+
+      .brand {
+        padding-left: 20px;
+      }
+
+      .breadcrumb {
+        display: none;
+      }
+
+      .layout {
+        grid-template-columns: 220px minmax(0, 1fr);
+      }
+
+      .rightbar {
+        grid-column: 1 / -1;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .rightbar {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+        gap: 16px;
+      }
+
+      .rule-card + .result-card {
+        margin-top: 0;
+      }
+
+      .result-box {
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .shell {
+        width: min(100vw - 18px, 620px);
+        margin: 9px auto;
+        border-radius: 22px;
+      }
+
+      .topbar {
+        height: auto;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      .brand {
+        padding-left: 0;
+      }
+
+      .toolbar {
+        justify-content: flex-start;
+        padding-right: 0;
+      }
+
+      .layout,
+      .rightbar {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .workspace,
+      .sidebar,
+      .rightbar {
+        padding: 18px;
+      }
+
+      .intro {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid,
+      .mini-guide {
+        grid-template-columns: 1fr;
+      }
+
+      .editor-card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">C</span>
+        <span>Copy Studio</span>
+      </div>
+      <div class="breadcrumb">16.0 Guidelines / <strong>文案优化工作台</strong></div>
+      <div class="toolbar">
+        <button class="icon-btn" id="sampleBtn" type="button" title="填入示例">Ex</button>
+        <button class="icon-btn" id="resetTopBtn" type="button" title="清空">Cl</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <h2 class="nav-title">Copy Types</h2>
+        <div class="category-list" id="categoryList"></div>
+      </aside>
+
+      <section class="workspace">
+        <div class="intro">
+          <div>
+            <p>先选触点，再选 PDF 场景，补齐收益、动作和保留词后生成更确定的候选文案。</p>
+          </div>
+          <div class="status-pill" id="statusPill">当前：核心交易</div>
+        </div>
+
+        <div class="editor-card">
+          <div class="form-grid">
+            <div class="field">
+              <label for="sceneSelect">具体场景</label>
+              <select id="sceneSelect"></select>
+            </div>
+            <div class="field">
+              <label for="limitInput">位置或字数限制</label>
+              <input id="limitInput" placeholder="例如：按钮 / Toast / 12 字以内">
+            </div>
+            <div class="field">
+              <label for="benefitInput">用户收益或目标</label>
+              <input id="benefitInput" placeholder="例如：体验新版功能 / 快速填写地址">
+            </div>
+            <div class="field">
+              <label for="actionInput">用户下一步</label>
+              <input id="actionInput" placeholder="例如：立即体验 / 点击刷新 / 去查看">
+            </div>
+            <div class="field full">
+              <label for="keepInput">必须保留的词</label>
+              <input id="keepInput" placeholder="例如：京东16.0 / PLUS / AI购助手 / 30元优惠券">
+            </div>
+            <div class="field full">
+              <label for="copyInput">需要优化的文案</label>
+              <textarea id="copyInput" placeholder="粘贴原文，例如：当前网络连接失败，错误代码0x004"></textarea>
+            </div>
+            <div class="field full">
+              <label for="contextInput">补充背景</label>
+              <textarea id="contextInput" placeholder="可选：用户状态、业务目标、下一步动作、必须保留的业务词等"></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" id="generateBtn" type="button">生成优化结果</button>
+            <button class="btn" id="resetBtn" type="button">清空输入</button>
+          </div>
+
+          <div class="mini-guide">
+            <div class="mini-card">
+              <strong>可靠</strong>
+              <span>先说事实和状态，少用模糊承诺，让用户知道下一步。</span>
+            </div>
+            <div class="mini-card">
+              <strong>亲切</strong>
+              <span>用用户视角表达，不责备、不命令，情绪强度刚刚好。</span>
+            </div>
+            <div class="mini-card">
+              <strong>简单</strong>
+              <span>用直白词替代黑话，名称和术语在同一链路保持一致。</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="rightbar">
+        <section class="rule-card">
+          <h2 class="panel-title" id="ruleTitle">规范要点</h2>
+          <ul class="rule-list" id="ruleList"></ul>
+        </section>
+
+        <section class="result-card">
+          <div class="result-header">
+            <h2 class="panel-title">优化结果</h2>
+            <button class="btn" id="copyBtn" type="button">复制</button>
+          </div>
+          <div class="result-box empty" id="resultBox">生成后，这里会直接出现可用的优化文案。</div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="toast" id="toast">已复制</div>
+
+  <script>
+    const categories = [
+      {
+        id: "transaction",
+        name: "核心交易",
+        desc: "操作、支付、表单、报错、反馈",
+        principle: "高目的性触点要先说明状态和下一步，减少技术信息和解释负担。",
+        scenarios: [
+          {
+            id: "error",
+            name: "出错提示",
+            rules: ["说明发生了什么。", "必要时说明原因。", "给出解决路径或一键修复。", "不要让用户觉得是自己的错。"],
+            sample: { limit: "Toast，18 字以内", keep: "", benefit: "继续完成当前操作", action: "点击刷新", copy: "当前网络连接失败，错误代码0x004", context: "用户正在提交订单。" },
+            templates: ["网络连接失败，请重试", "网络连接失败，点击刷新", "暂时无法完成操作，请稍后再试", "{core}，请{action}"]
+          },
+          {
+            id: "result",
+            name: "操作结果反馈",
+            rules: ["及时告知操作结果。", "涉及利益或权益时可给正向认可。", "无利益激励时只概括状态。"],
+            sample: { limit: "结果提示，24 字以内", keep: "补货申请", benefit: "到货后收到提醒", action: "等待消息提醒", copy: "如果30天内到货，会通过消息中心提醒您", context: "用户点击到货通知后的弹层。" },
+            templates: ["OK！已收到{core}", "{core}已收到，{benefit}", "{core}成功，{action}", "已为你记录{core}，{benefit}"]
+          },
+          {
+            id: "form",
+            name: "表单/地址/支付",
+            rules: ["使用用户熟悉的词。", "按钮和目标页面标题保持一致。", "用动宾结构降低理解成本。"],
+            sample: { limit: "按钮，6 字以内", keep: "收货地址", benefit: "完成下单", action: "添加", copy: "新建收货地址", context: "地址为空时的操作按钮。" },
+            templates: ["添加{core}", "修改{core}", "确认{core}", "{action}{core}"]
+          },
+          {
+            id: "next",
+            name: "后续操作指引",
+            rules: ["引导操作时优先露出目标信息。", "说明为什么值得用户继续操作。", "避免平台视角。"],
+            sample: { limit: "页面提示语，26 字以内", keep: "定位服务", benefit: "快速填写地址", action: "开启", copy: "定位服务未开启", context: "用户填写收货地址前。" },
+            templates: ["开启{core}，可{benefit}", "{action}{core}，{benefit}", "{core}开启后，{benefit}", "为了{benefit}，请{action}{core}"]
+          }
+        ]
+      },
+      {
+        id: "emotion",
+        name: "情感陪伴",
+        desc: "空状态、权益、成就、个人状态",
+        principle: "低压力触点要承接状态和情绪，表达自然克制，不制造强迫感。",
+        scenarios: [
+          {
+            id: "empty",
+            name: "空状态",
+            rules: ["先说明当前状态。", "再给出有价值的下一步。", "可轻量使用语气助词。"],
+            sample: { limit: "空状态主文案，24 字以内", keep: "购物车", benefit: "看价格更方便", action: "加入喜欢的商品", copy: "小车大容量，喜欢的都加进来吧", context: "购物车为空。" },
+            templates: ["{core}还是空的哦", "{action}，{benefit}", "{core}还是空的，把喜欢的商品加进来吧", "把喜欢的商品放进{core}，{benefit}"]
+          },
+          {
+            id: "success_emotion",
+            name: "操作完成后的情绪反馈",
+            rules: ["关联权益时可给予认可。", "补充后续利益。", "无利益激励时不过度庆祝。"],
+            sample: { limit: "Toast，22 字以内", keep: "优惠券", benefit: "下单时直接抵扣", action: "去使用", copy: "领取成功", context: "用户领取优惠券成功。" },
+            templates: ["恭喜你领取成功", "{core}已领取，{benefit}", "领取成功，{action}", "已为你领取{core}"]
+          },
+          {
+            id: "rights_success",
+            name: "权益领取成功",
+            rules: ["突出用户获得的实际利益。", "限制条件后置。", "以用户为主体表达。"],
+            sample: { limit: "权益提示，30 字以内", keep: "30元优惠券", benefit: "下单更省", action: "去查看", copy: "平台已向你发放优惠券", context: "优惠券领取成功。" },
+            templates: ["已为你领取{core}", "{core}已到账，{benefit}", "恭喜领到{core}，{action}", "{core}已领取，下单可用"]
+          },
+          {
+            id: "personal_state",
+            name: "会员/资产/个人状态",
+            rules: ["涉及用户资产可用“我”建立边界。", "突出专属感和安全感。", "同一场景人称保持一致。"],
+            sample: { limit: "模块标题，10 字以内", keep: "我的资产", benefit: "查看账户权益", action: "查看", copy: "用户资产盘点", context: "个人中心资产模块。" },
+            templates: ["{core}", "我的权益", "我的优惠", "{action}{core}"]
+          }
+        ]
+      },
+      {
+        id: "guide",
+        name: "功能引导",
+        desc: "新手引导、功能上新、权限、路径",
+        principle: "功能变化会带来不确定感，要说明价值、路径和可控性。",
+        scenarios: [
+          {
+            id: "onboarding",
+            name: "新手引导弹窗",
+            rules: ["直接说明用户收益。", "保留核心功能或版本名。", "给出明确下一步。"],
+            sample: { limit: "页面提示语，28 字以内", keep: "京东16.0", benefit: "体验新版功能", action: "立即体验", copy: "请升级到最新16.0系统", context: "引导用户升级京东16.0。" },
+            templates: ["升级到{core}，{benefit}", "更新{core}，开启新版体验", "升级至{core}，体验更流畅", "新版{core}已上线，{action}"]
+          },
+          {
+            id: "feature_update",
+            name: "功能上新",
+            rules: ["降低尝新风险。", "用客观价值说明功能有什么用。", "如无图示，写清功能位置。"],
+            sample: { limit: "弹窗正文，36 字以内", keep: "浏览记录", benefit: "看过的商品也能轻松找到", action: "去我的-浏览记录查看", copy: "新增浏览记录功能", context: "新版本功能上新。" },
+            templates: ["{core}来啦，{benefit}", "新增{core}，{benefit}", "{core}已上线，{action}", "{core}升级，{benefit}"]
+          },
+          {
+            id: "permission",
+            name: "权限开启引导",
+            rules: ["讲清开启后的好处。", "避免只说未开启。", "语气可以亲切但不强迫。"],
+            sample: { limit: "权限弹窗，26 字以内", keep: "定位服务", benefit: "快速填写地址", action: "开启", copy: "定位服务未开启", context: "填写地址前引导开启定位。" },
+            templates: ["开启{core}，可{benefit}", "{action}{core}，{benefit}", "{core}开启后，{benefit}", "开启后，{benefit}"]
+          },
+          {
+            id: "path",
+            name: "功能路径说明",
+            rules: ["说清功能在哪里。", "路径要短且可执行。", "避免只说新增功能。"],
+            sample: { limit: "页面说明，40 字以内", keep: "浏览记录", benefit: "快速找回看过的商品", action: "我的-浏览记录", copy: "新增浏览记录功能", context: "没有图示，需要文案说明位置。" },
+            templates: ["在“{action}”可找到{core}", "{core}已上线，可在“{action}”查看", "{benefit}，去“{action}”看看", "看过的内容，可在“{action}”找回"]
+          },
+          {
+            id: "mode_switch",
+            name: "模式切换",
+            rules: ["说明当前模式。", "保留返回路径或替代路径。", "无明显利益时不过度庆祝。"],
+            sample: { limit: "状态提示，28 字以内", keep: "AI购助手", benefit: "更快找到合适商品", action: "返回普通搜索", copy: "已为您切换至大模型智能搜索全景推荐模式", context: "用户可返回普通搜索。" },
+            templates: ["正在使用{core}，可{action}", "{core}已开启，{benefit}", "已进入{core}，随时可{action}", "{core}模式已开启"]
+          }
+        ]
+      },
+      {
+        id: "marketing",
+        name: "营销种草",
+        desc: "低价、补贴、运营、场景、权益",
+        principle: "营销触点要简单直接露出利益，真实合理地制造场景和吸引力。",
+        scenarios: [
+          {
+            id: "low_price",
+            name: "低价宣导",
+            rules: ["直接露出具体价格。", "用优惠、便宜等更好理解的词。", "避免强调原价和负面价格心智。"],
+            sample: { limit: "商品卡利益点，14 字以内", keep: "99元", benefit: "下单更省", action: "去看看", copy: "降价幅度高达75%，实际结算价以详情页为准", context: "真实到手价 99 元。" },
+            templates: ["到手价{core}", "{core}起，喜欢就早点入手", "现在买到手{core}", "{core}也能买到好物"]
+          },
+          {
+            id: "subsidy",
+            name: "优惠/补贴表达",
+            rules: ["优先使用补贴、红包、券后价等奖励词。", "突出用户能省到什么。", "限制条件后置。"],
+            sample: { limit: "利益点，16 字以内", keep: "官方补贴价", benefit: "买得更省", action: "立即购买", copy: "折后价20元", context: "平台官方补贴商品。" },
+            templates: ["{core}", "{core}，{benefit}", "已为你领取最佳优惠券", "券后价更划算"]
+          },
+          {
+            id: "operation",
+            name: "运营话术",
+            rules: ["用生活中常见的词。", "句式完整，避免行话。", "可用数据增强说服力。"],
+            sample: { limit: "频道卡标题，18 字以内", keep: "绿萝", benefit: "搭配更省心", action: "去看看", copy: "买了绿箩的人还会买", context: "可展示 90% 用户数据。" },
+            templates: ["90%买{core}的人还买了", "{core}搭配好物，{benefit}", "比一比，再下手", "{core}相关好物，{action}"]
+          },
+          {
+            id: "scene_seed",
+            name: "场景化种草",
+            rules: ["基于时间、地点、用户状态或目标营造场景。", "让用户联想到真实使用体验。", "少用泛泛的“买什么”。"],
+            sample: { limit: "频道标题，18 字以内", keep: "露营装备", benefit: "不踩坑", action: "去看看", copy: "露营买什么", context: "面向新手露营用户。" },
+            templates: ["新手必看的{core}清单", "{core}不翻车清单", "周末出发，{core}备好了", "{core}，{benefit}"]
+          },
+          {
+            id: "rights",
+            name: "权益表达",
+            rules: ["清晰简洁真实。", "突出核心价值。", "从用户角度写，限制条件后置。"],
+            sample: { limit: "权益卡标题，20 字以内", keep: "原厂服务", benefit: "省下大笔维修费", action: "开通", copy: "原厂服务为您大幅节约维修费用", context: "PLUS 权益表达。" },
+            templates: ["{action}即享{core}", "{core}，{benefit}", "{action}{core}，{benefit}", "购物返利直接花"]
+          }
+        ]
+      },
+      {
+        id: "service",
+        name: "客服售后",
+        desc: "退款、投诉、严重错误、等待、方案",
+        principle: "负面情绪触点要先承接不便，再给出明确进度、原因或解决方案。",
+        scenarios: [
+          {
+            id: "refund",
+            name: "退款/退货进度",
+            rules: ["说明当前状态。", "给出预计时间或下一节点。", "尽量提供低摩擦方案。"],
+            sample: { limit: "进度页说明，36 字以内", keep: "退款", benefit: "1-3个工作日原路退回", action: "查看进度", copy: "退款已后台流转，具体到账时间请以银行为准", context: "退款已审核通过。" },
+            templates: ["{core}已通过，预计{benefit}", "已为你提交{core}，预计{benefit}", "{core}处理中，有进展会及时通知你", "{core}进度已更新，可{action}"]
+          },
+          {
+            id: "complaint",
+            name: "投诉/反馈响应",
+            rules: ["使用“我们”表达平台响应。", "表达诚恳和专业。", "说明后续处理方式。"],
+            sample: { limit: "客服话术，32 字以内", keep: "问题", benefit: "尽快处理", action: "等待反馈", copy: "当前排队人数过多，请晚些时候再来咨询", context: "用户反馈问题后。" },
+            templates: ["问题已收到，我们会尽快处理", "我们已记录你的{core}，会及时反馈", "很抱歉让你久等了，我们正在加急处理", "已收到反馈，处理进度会及时同步"]
+          },
+          {
+            id: "serious_error",
+            name: "严重错误安抚",
+            rules: ["把抱歉留给严重错误。", "说明影响和补救。", "不要把责任推给用户。"],
+            sample: { limit: "弹窗正文，40 字以内", keep: "退款失败", benefit: "3元优惠券已发到账户", action: "联系在线客服", copy: "退款失败：请检查账户信息是否有误", context: "平台侧退款失败，需安抚。" },
+            templates: ["很抱歉，{core}，可{action}", "{core}，{benefit}", "很抱歉给你带来不便，{benefit}", "{core}，我们会尽快为你处理"]
+          },
+          {
+            id: "solution",
+            name: "售后解决方案",
+            rules: ["有解决方案时尽量给一键操作。", "无方案时说明具体原因。", "使用明确数字和日期。"],
+            sample: { limit: "处理卡片，32 字以内", keep: "退货申请", benefit: "快递上门取件", action: "预约取件", copy: "商家已同意退货，请退出后手动填写快递单号", context: "商家同意退货。" },
+            templates: ["{core}已通过，可{action}", "商家已同意，点击{action}", "{action}，{benefit}", "已为你准备好处理流程，可{action}"]
+          }
+        ]
+      },
+      {
+        id: "naming",
+        name: "入口命名",
+        desc: "产品、功能、频道、品牌化、描述性",
+        principle: "命名要降低识别和传播成本，让用户一眼知道这是什么、能做什么。",
+        scenarios: [
+          {
+            id: "product",
+            name: "产品命名",
+            rules: ["基础功能通常不叠加京东背书。", "除站外宣传外，优先强调功能本身。", "避免专属名造成认知负担。"],
+            sample: { limit: "入口名称，4 字以内", keep: "小时购", benefit: "即时购买", action: "进入", copy: "京东小时购", context: "站内固定入口。" },
+            templates: ["{core}", "小时购", "支付订单", "购物车"]
+          },
+          {
+            id: "function",
+            name: "功能命名",
+            rules: ["使用用户熟悉的通用词。", "直接表达功能用途。", "避免内部概念。"],
+            sample: { limit: "功能名称，4 字以内", keep: "浏览记录", benefit: "找回看过的商品", action: "查看", copy: "足迹云档案", context: "记录浏览过的商品。" },
+            templates: ["{core}", "浏览记录", "推荐商品", "我的订单"]
+          },
+          {
+            id: "brand",
+            name: "品牌化命名",
+            rules: ["与功能或利益直接相关。", "有认知基础，易搜索。", "避免生僻、歧义和中英文混杂。"],
+            sample: { limit: "品牌名，4 字以内", keep: "优选", benefit: "精选好物", action: "搜索", copy: "京寻", context: "京东站内精选频道。" },
+            templates: ["京东{core}", "京东优选", "天天特价", "拍拍二手"]
+          },
+          {
+            id: "descriptive",
+            name: "描述性命名",
+            rules: ["直接说明功能、特点或作用。", "适合需要快速理解的入口。", "避免过于开放。"],
+            sample: { limit: "入口名，5 字以内", keep: "推荐商品", benefit: "继续浏览", action: "查看", copy: "再看看吧", context: "商品详情页推荐入口。" },
+            templates: ["{core}", "推荐商品", "相关商品", "精选推荐"]
+          },
+          {
+            id: "evocative",
+            name: "唤起性命名",
+            rules: ["用强动词开头。", "适合提升参与度。", "让用户知道点击后要做什么。"],
+            sample: { limit: "入口名，4 字以内", keep: "问大家", benefit: "查看买家回答", action: "提问", copy: "问答", context: "商品页买家问答入口。" },
+            templates: ["{core}", "问大家", "去评价", "领优惠"]
+          }
+        ]
+      }
+    ];
+
+    let activeId = categories[0].id;
+
+    const categoryList = document.getElementById("categoryList");
+    const sceneSelect = document.getElementById("sceneSelect");
+    const ruleTitle = document.getElementById("ruleTitle");
+    const ruleList = document.getElementById("ruleList");
+    const copyInput = document.getElementById("copyInput");
+    const contextInput = document.getElementById("contextInput");
+    const limitInput = document.getElementById("limitInput");
+    const benefitInput = document.getElementById("benefitInput");
+    const actionInput = document.getElementById("actionInput");
+    const keepInput = document.getElementById("keepInput");
+    const resultBox = document.getElementById("resultBox");
+    const toast = document.getElementById("toast");
+    const statusPill = document.getElementById("statusPill");
+
+    function activeCategory() {
+      return categories.find((item) => item.id === activeId) || categories[0];
+    }
+
+    function activeScenario() {
+      const current = activeCategory();
+      return current.scenarios.find((item) => item.name === sceneSelect.value) || current.scenarios[0];
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;"
+      }[char]));
+    }
+
+    function fitLimit(text, limit) {
+      const match = limit.match(/(\d+)\s*字/);
+      if (!match) return text;
+      const max = Number(match[1]);
+      if (!max || text.length <= max) return text;
+      return text.slice(0, Math.max(2, max));
+    }
+
+    function uniqueList(items) {
+      const seen = new Set();
+      return items.filter((item) => {
+        const value = item.trim();
+        if (!value || seen.has(value)) return false;
+        seen.add(value);
+        return true;
+      });
+    }
+
+    function normalizeCopy(source) {
+      return source
+        .replace(/错误代码[：:]?\s*[a-zA-Z0-9xX._-]+/g, "")
+        .replace(/由于您的?错误操作[，,]?/g, "")
+        .replace(/实际结算价以详情页为准/g, "到手价以下单页为准")
+        .replace(/后台流转中?|后台流转/g, "处理中")
+        .replace(/为您/g, "为你")
+        .replace(/您的/g, "你的")
+        .replace(/您/g, "你")
+        .replace(/平台已/g, "已")
+        .replace(/买买买/g, "去看看")
+        .replace(/[，,。；;：:、\s]+$/g, "")
+        .trim();
+    }
+
+    function inferCore(source, context, keep) {
+      if (keep.trim()) return keep.trim();
+      const text = `${source} ${context}`;
+      const version = text.match(/(?:京东)?\s*(\d+(?:\.\d+)?)\s*(?:版本|系统|版)?/);
+      if (version) return `京东${version[1]}`;
+      const price = text.match(/(?:￥|¥)?\s*(\d+(?:\.\d+)?)\s*元/);
+      if (price) return `${price[1]}元`;
+      const coupon = text.match(/\d+\s*元优惠券|优惠券|红包|补贴|PLUS|AI购助手|浏览记录|定位服务|购物车|退款|退货申请|收货地址|问大家/);
+      if (coupon) return coupon[0].replace(/\s+/g, "");
+      return normalizeCopy(source) || "这项内容";
+    }
+
+    function fillTemplate(template, data) {
+      return template
+        .replaceAll("{core}", data.core)
+        .replaceAll("{benefit}", data.benefit)
+        .replaceAll("{action}", data.action);
+    }
+
+    function buildSuggestions(category, scenario, data) {
+      const suggestions = scenario.templates.map((template) => fitLimit(fillTemplate(template, data), data.limit));
+      return uniqueList(suggestions).slice(0, 4);
+    }
+
+    function renderCategories() {
+      categoryList.innerHTML = categories.map((item, index) => `
+        <button class="category-card ${item.id === activeId ? "active" : ""}" data-id="${item.id}" type="button">
+          <span class="category-index">${String(index + 1).padStart(2, "0")}</span>
+          <span>
+            <span class="category-name">${item.name}</span>
+            <span class="category-desc">${item.desc}</span>
+          </span>
+        </button>
+      `).join("");
+    }
+
+    function renderDetail(keepSelected = false) {
+      const current = activeCategory();
+      const selected = sceneSelect.value;
+      sceneSelect.innerHTML = current.scenarios
+        .map((scene) => `<option>${escapeHtml(scene.name)}</option>`)
+        .join("");
+      if (keepSelected && current.scenarios.some((scene) => scene.name === selected)) {
+        sceneSelect.value = selected;
+      }
+      const scene = activeScenario();
+      ruleTitle.textContent = `${current.name} / ${scene.name}`;
+      ruleList.innerHTML = [current.principle, ...scene.rules].map((rule) => `<li>${escapeHtml(rule)}</li>`).join("");
+      statusPill.textContent = `当前：${current.name} / ${scene.name}`;
+    }
+
+    function generatePrompt() {
+      const current = activeCategory();
+      const scene = activeScenario();
+      const source = copyInput.value.trim();
+      const context = contextInput.value.trim();
+      const limit = limitInput.value.trim() || "无明确限制";
+      const data = {
+        core: inferCore(source, context, keepInput.value),
+        benefit: benefitInput.value.trim() || scene.sample.benefit,
+        action: actionInput.value.trim() || scene.sample.action,
+        limit
+      };
+      const suggestions = buildSuggestions(current, scene, data);
+      const recommendationLines = suggestions.map((item, index) => `${index + 1}. ${item}`).join("\n");
+      const ruleLines = scene.rules.map((rule) => `- ${rule}`).join("\n");
+
+      resultBox.classList.remove("empty");
+      resultBox.textContent =
+`分类：${current.name} / ${scene.name}
+
+输入识别：
+- 必须保留：${data.core}
+- 用户收益：${data.benefit}
+- 用户下一步：${data.action}
+- 位置限制：${limit}
+
+规范依据：
+${ruleLines}
+
+推荐文案：
+${recommendationLines}
+
+首选：${suggestions[0]}
+理由：保留核心信息“${data.core}”，优先说明用户收益“${data.benefit}”，并适配“${limit}”。
+
+自检：已按“简单、可靠、亲切”处理，避免平台视角、模糊表达和不必要的技术词。`;
+    }
+
+    function resetForm() {
+      copyInput.value = "";
+      contextInput.value = "";
+      limitInput.value = "";
+      benefitInput.value = "";
+      actionInput.value = "";
+      keepInput.value = "";
+      resultBox.classList.add("empty");
+      resultBox.textContent = "生成后，这里会直接出现可用的优化文案。";
+    }
+
+    function fillSample() {
+      const scene = activeScenario();
+      limitInput.value = scene.sample.limit;
+      keepInput.value = scene.sample.keep;
+      benefitInput.value = scene.sample.benefit;
+      actionInput.value = scene.sample.action;
+      copyInput.value = scene.sample.copy;
+      contextInput.value = scene.sample.context;
+      generatePrompt();
+      showToast("已填入示例");
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.setTimeout(() => toast.classList.remove("show"), 1400);
+    }
+
+    categoryList.addEventListener("click", (event) => {
+      const button = event.target.closest(".category-card");
+      if (!button) return;
+      activeId = button.dataset.id;
+      renderCategories();
+      renderDetail();
+      if (!resultBox.classList.contains("empty")) {
+        generatePrompt();
+      }
+    });
+
+    sceneSelect.addEventListener("change", () => {
+      renderDetail(true);
+      if (!resultBox.classList.contains("empty")) {
+        generatePrompt();
+      }
+    });
+
+    document.getElementById("generateBtn").addEventListener("click", generatePrompt);
+    document.getElementById("resetBtn").addEventListener("click", resetForm);
+    document.getElementById("resetTopBtn").addEventListener("click", resetForm);
+    document.getElementById("sampleBtn").addEventListener("click", fillSample);
+    document.getElementById("copyBtn").addEventListener("click", async () => {
+      const text = resultBox.textContent.trim();
+      if (!text || resultBox.classList.contains("empty")) {
+        showToast("还没有可复制内容");
+        return;
+      }
+      await navigator.clipboard.writeText(text);
+      showToast("已复制");
+    });
+
+    renderCategories();
+    renderDetail();
+  </script>
+</body>
+</html>
