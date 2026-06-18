@@ -990,11 +990,41 @@
       const text = `${source} ${context}`;
       const version = text.match(/京东\s*(\d+(?:\.\d+)*)\s*(?:版本|系统|版)?|((?:\d+(?:\.\d+)*))\s*(?:版本|系统|版)/);
       if (version) return `京东${version[1] || version[2]}`;
+      const coupon = text.match(/\d+(?:\.\d+)?\s*元优惠券|优惠券|红包|补贴|PLUS|AI购助手|浏览记录|定位服务|购物车|退款|退货申请|收货地址|问大家/);
+      if (coupon) return coupon[0].replace(/\s+/g, "");
       const price = text.match(/(?:￥|¥)?\s*(\d+(?:\.\d+)?)\s*元/);
       if (price) return `${price[1]}元`;
-      const coupon = text.match(/\d+\s*元优惠券|优惠券|红包|补贴|PLUS|AI购助手|浏览记录|定位服务|购物车|退款|退货申请|收货地址|问大家/);
-      if (coupon) return coupon[0].replace(/\s+/g, "");
       return normalizeCopy(source) || "这项内容";
+    }
+
+    function inferOffer(source, context, benefit) {
+      const text = `${source} ${context} ${benefit}`;
+      const match = text.match(/\d+(?:\.\d+)?\s*元优惠券|\d+(?:\.\d+)?\s*元红包|优惠券|红包/);
+      return match ? match[0].replace(/\s+/g, "") : "";
+    }
+
+    function inferChannel(source, context) {
+      const text = `${source} ${context}`;
+      const match = text.match(/AI购(?:助手)?|小时购|PLUS|京东直播/);
+      return match ? match[0] : "";
+    }
+
+    function marketingClaimCandidates(data) {
+      const offer = data.offer || data.core;
+      if (data.channel) {
+        return [
+          `上${data.channel}，领${offer}`,
+          `打开${data.channel}，领取${offer}`,
+          `去${data.channel}领${offer}`,
+          `${data.channel}${offer}，点击领取`
+        ];
+      }
+      return [
+        `领取${offer}`,
+        `${offer}待领取`,
+        `${offer}，点击领取`,
+        `领${offer}，下单更省`
+      ];
     }
 
     function inferEvent(source, core) {
@@ -1030,6 +1060,8 @@
       const benefitSignal = fitLimit(data.benefit, data.limit);
       let score = 10 - index * 0.2;
       if (data.core && text.includes(data.core)) score += 8;
+      if (data.offer && text.includes(data.offer)) score += 9;
+      if (data.channel && text.includes(data.channel)) score += 6;
       if (data.event && text.includes(data.event)) score += 8;
       const benefitWeight = scenario.id === "empty" ? 3 : 7;
       if (data.benefit && text.includes(data.benefit)) score += benefitWeight;
@@ -1049,7 +1081,9 @@
 
     function buildSuggestions(category, scenario, data) {
       let rawSuggestions;
-      if (category.id === "naming") {
+      if (category.id === "marketing" && data.offer && /领|领取|优惠券|红包/.test(`${data.source} ${data.context} ${data.benefit}`)) {
+        rawSuggestions = marketingClaimCandidates(data);
+      } else if (category.id === "naming") {
         rawSuggestions = namingCandidates(scenario, data);
       } else if (scenario.id === "empty") {
         rawSuggestions = [
@@ -1111,6 +1145,11 @@
         context,
         limit
       };
+      data.offer = inferOffer(source, context, data.benefit);
+      data.channel = inferChannel(source, context);
+      data.required = data.offer
+        ? [data.channel, data.offer].filter(Boolean).join("、")
+        : data.core;
       data.event = inferEvent(source, data.core);
       const suggestions = buildSuggestions(current, scene, data);
       const recommendationLines = suggestions.map((item, index) => `${index + 1}. ${item}`).join("\n");
@@ -1121,7 +1160,7 @@
 `分类：${current.name} / ${scene.name}
 
 输入识别：
-- 必须保留：${data.core}
+- 必须保留：${data.required}
 - 用户收益：${data.benefit}
 - 用户下一步：${data.action}
 - 位置限制：${limit}
@@ -1133,7 +1172,7 @@ ${ruleLines}
 ${recommendationLines}
 
 首选：${suggestions[0]}
-理由：保留核心信息“${data.core}”，优先说明用户收益“${data.benefit}”，并适配“${limit}”。
+理由：保留核心信息“${data.required}”，优先说明用户收益“${data.benefit}”，并适配“${limit}”。
 
 自检：已按“简单、可靠、亲切”处理，避免平台视角、模糊表达和不必要的技术词。`;
     }
