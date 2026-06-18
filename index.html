@@ -1133,10 +1133,13 @@
 
     function generatePrompt() {
       const current = activeCategory();
-      const scene = activeScenario();
+      let scene = activeScenario();
       const source = copyInput.value.trim();
       const context = contextInput.value.trim();
       const limit = limitInput.value.trim() || "无明确限制";
+      if (current.id === "marketing" && /领|领取|优惠券|红包/.test(`${source} ${context} ${benefitInput.value}`)) {
+        scene = current.scenarios.find((item) => item.id === "subsidy") || scene;
+      }
       const data = {
         core: inferCore(source, context, keepInput.value),
         benefit: benefitInput.value.trim() || scene.sample.benefit,
