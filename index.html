@@ -266,18 +266,6 @@
       line-height: 1.7;
     }
 
-    .status-pill {
-      align-self: start;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.72);
-      padding: 10px 14px;
-      color: #585b60;
-      font-size: 12px;
-      font-weight: 680;
-      white-space: nowrap;
-    }
-
     .editor-card,
     .result-card,
     .rule-card {
@@ -579,9 +567,8 @@
       <section class="workspace">
         <div class="intro">
           <div>
-            <p>先选触点，再选 PDF 场景，补齐收益、动作和保留词后生成更确定的候选文案。</p>
+            <p>操作指南：1. 先选文案分类 2. 再选具体场景。如果补齐收益、动作和保留词，生成的文案会更加准确哦！</p>
           </div>
-          <div class="status-pill" id="statusPill">当前：核心交易</div>
         </div>
 
         <div class="editor-card">
@@ -912,7 +899,6 @@
     const keepInput = document.getElementById("keepInput");
     const resultBox = document.getElementById("resultBox");
     const toast = document.getElementById("toast");
-    const statusPill = document.getElementById("statusPill");
 
     function activeCategory() {
       return categories.find((item) => item.id === activeId) || categories[0];
@@ -1211,7 +1197,6 @@
       const scene = activeScenario();
       ruleTitle.textContent = `${current.name} / ${scene.name}`;
       ruleList.innerHTML = [current.principle, ...scene.rules].map((rule) => `<li>${escapeHtml(rule)}</li>`).join("");
-      statusPill.textContent = `当前：${current.name} / ${scene.name}`;
     }
 
     function generatePrompt() {
