@@ -1015,6 +1015,23 @@
       ];
     }
 
+    function inferNotificationCampaign(source, context) {
+      const text = normalizeCopy(`${source} ${context}`);
+      if (!/(?:开启|打开).{0,4}(?:消息)?通知/.test(text)) return null;
+      const rewardMatch = text.match(/(?:领|领取|得|获得)\s*([^，,。；\s]{2,12}(?:红包|优惠券|好礼|奖励))/);
+      if (!rewardMatch) return null;
+      return { subject: "消息通知", reward: rewardMatch[1].replace(/\s+/g, "") };
+    }
+
+    function notificationCampaignCandidates(campaign) {
+      return [
+        `开启消息通知，${campaign.reward}不错过`,
+        `开启消息通知，领取${campaign.reward}`,
+        `打开消息通知，${campaign.reward}等你领`,
+        `开启通知，领${campaign.reward}`
+      ];
+    }
+
     function inferCore(source, context, keep) {
       if (keep.trim()) return keep.trim();
       const text = `${source} ${context}`;
@@ -1138,7 +1155,9 @@
 
     function buildSuggestions(category, scenario, data) {
       let rawSuggestions;
-      if (category.id === "service" && data.arrival) {
+      if (data.notificationCampaign) {
+        rawSuggestions = notificationCampaignCandidates(data.notificationCampaign);
+      } else if (category.id === "service" && data.arrival) {
         rawSuggestions = arrivalCandidates(data.arrival);
       } else if (category.id === "marketing" && data.downloadTarget) {
         rawSuggestions = downloadCampaignCandidates(data);
@@ -1196,7 +1215,7 @@
     }
 
     function generatePrompt() {
-      const current = activeCategory();
+      let current = activeCategory();
       let scene = activeScenario();
       const source = copyInput.value.trim();
       const context = contextInput.value.trim();
@@ -1205,20 +1224,25 @@
       const reward = inferReward(source, context);
       const arrival = inferArrival(source, context);
       const keepTerms = parseKeepTerms(keepInput.value);
-      if (current.id === "marketing" && downloadTarget) {
+      const notificationCampaign = inferNotificationCampaign(source, context);
+      if (notificationCampaign) {
+        current = categories.find((item) => item.id === "marketing") || current;
+        scene = current.scenarios.find((item) => item.id === "subsidy") || current.scenarios[0];
+      } else if (current.id === "marketing" && downloadTarget) {
         scene = current.scenarios.find((item) => item.id === "operation") || scene;
       } else if (current.id === "marketing" && /优惠券|红包|补贴|券后|领券/.test(`${source} ${context} ${benefitInput.value}`)) {
         scene = current.scenarios.find((item) => item.id === "subsidy") || scene;
       }
       const data = {
-        core: arrival ? arrival.subject : inferCore(source, context, keepTerms[0] || ""),
-        benefit: arrival ? `${arrival.time}后到账` : (downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit)),
-        action: arrival ? "无需操作" : (downloadTarget ? "下载" : (actionInput.value.trim() || scene.sample.action)),
+        core: notificationCampaign ? notificationCampaign.subject : (arrival ? arrival.subject : inferCore(source, context, keepTerms[0] || "")),
+        benefit: notificationCampaign ? `领取${notificationCampaign.reward}` : (arrival ? `${arrival.time}后到账` : (downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit))),
+        action: actionInput.value.trim() || (notificationCampaign ? "开启消息通知" : (arrival ? "无需操作" : (downloadTarget ? "下载" : scene.sample.action))),
         source,
         context,
         downloadTarget,
         reward,
         arrival,
+        notificationCampaign,
         keepTerms,
         limit
       };
@@ -1226,6 +1250,8 @@
       data.channel = inferChannel(source, context);
       data.required = data.keepTerms.length
         ? data.keepTerms.join("、")
+        : data.notificationCampaign
+        ? `${data.notificationCampaign.subject}、${data.notificationCampaign.reward}`
         : data.arrival
         ? `${data.arrival.subject}、${data.arrival.time}后到账`
         : data.downloadTarget
@@ -1257,7 +1283,7 @@ ${recommendationLines}
 首选：${suggestions[0]}
 理由：保留核心信息“${data.required}”，优先说明用户收益“${data.benefit}”，并适配“${limit}”。
 
-自检：已按“简单、可靠、亲切”处理，并确保所有必须保留的词均出现在候选文案中。`;
+自检：已按“简单、可靠、亲切”处理；必须保留的词为硬约束，用户下一步仅作为生成依据，不做机械拼接。`;
     }
 
     function resetForm() {
