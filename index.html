@@ -994,10 +994,10 @@
 
     function arrivalCandidates(arrival) {
       return [
-        `${arrival.subject}预计${arrival.time}后到账`,
+        `${arrival.subject}预计${arrival.time}后到账，有进展会及时通知你`,
+        `${arrival.subject}将在${arrival.time}后到账，有进展会及时通知你`,
         `预计${arrival.time}后到账`,
-        `${arrival.subject}将在${arrival.time}后到账`,
-        `预计${arrival.time}后收到${arrival.subject}`
+        `${arrival.subject}预计${arrival.time}后到账`
       ];
     }
 
