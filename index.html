@@ -673,14 +673,14 @@
             name: "出错提示",
             rules: ["说明发生了什么。", "必要时说明原因。", "给出解决路径或一键修复。", "不要让用户觉得是自己的错。"],
             sample: { limit: "Toast，18 字以内", keep: "", benefit: "继续完成当前操作", action: "点击刷新", copy: "当前网络连接失败，错误代码0x004", context: "用户正在提交订单。" },
-            templates: ["网络连接失败，请重试", "网络连接失败，点击刷新", "暂时无法完成操作，请稍后再试", "{core}，请{action}"]
+            templates: ["{event}，请{action}", "{event}，可{action}", "{event}，请重试", "暂时无法完成操作，请稍后再试"]
           },
           {
             id: "result",
             name: "操作结果反馈",
             rules: ["及时告知操作结果。", "涉及利益或权益时可给正向认可。", "无利益激励时只概括状态。"],
             sample: { limit: "结果提示，24 字以内", keep: "补货申请", benefit: "到货后收到提醒", action: "等待消息提醒", copy: "如果30天内到货，会通过消息中心提醒您", context: "用户点击到货通知后的弹层。" },
-            templates: ["OK！已收到{core}", "{core}已收到，{benefit}", "{core}成功，{action}", "已为你记录{core}，{benefit}"]
+            templates: ["{core}已提交", "{core}已收到，{benefit}", "{core}提交成功，可{action}", "已记录{core}，{benefit}"]
           },
           {
             id: "form",
@@ -788,7 +788,7 @@
             name: "低价宣导",
             rules: ["直接露出具体价格。", "用优惠、便宜等更好理解的词。", "避免强调原价和负面价格心智。"],
             sample: { limit: "商品卡利益点，14 字以内", keep: "99元", benefit: "下单更省", action: "去看看", copy: "降价幅度高达75%，实际结算价以详情页为准", context: "真实到手价 99 元。" },
-            templates: ["到手价{core}", "{core}起，喜欢就早点入手", "现在买到手{core}", "{core}也能买到好物"]
+            templates: ["到手价{core}，{benefit}", "{core}，{benefit}", "现在买到手{core}", "到手价{core}"]
           },
           {
             id: "subsidy",
@@ -809,7 +809,7 @@
             name: "场景化种草",
             rules: ["基于时间、地点、用户状态或目标营造场景。", "让用户联想到真实使用体验。", "少用泛泛的“买什么”。"],
             sample: { limit: "频道标题，18 字以内", keep: "露营装备", benefit: "不踩坑", action: "去看看", copy: "露营买什么", context: "面向新手露营用户。" },
-            templates: ["新手必看的{core}清单", "{core}不翻车清单", "周末出发，{core}备好了", "{core}，{benefit}"]
+            templates: ["{core}，{benefit}", "{benefit}，看看{core}", "{action}{core}，{benefit}", "选好{core}，{benefit}"]
           },
           {
             id: "rights",
@@ -874,7 +874,7 @@
             name: "功能命名",
             rules: ["使用用户熟悉的通用词。", "直接表达功能用途。", "避免内部概念。"],
             sample: { limit: "功能名称，4 字以内", keep: "浏览记录", benefit: "找回看过的商品", action: "查看", copy: "足迹云档案", context: "记录浏览过的商品。" },
-            templates: ["{core}", "浏览记录", "推荐商品", "我的订单"]
+            templates: ["{core}", "浏览足迹", "最近浏览"]
           },
           {
             id: "brand",
@@ -936,12 +936,28 @@
       }[char]));
     }
 
-    function fitLimit(text, limit) {
+    function getMaxLength(limit) {
       const match = limit.match(/(\d+)\s*字/);
-      if (!match) return text;
-      const max = Number(match[1]);
-      if (!max || text.length <= max) return text;
-      return text.slice(0, Math.max(2, max));
+      return match ? Number(match[1]) : 0;
+    }
+
+    function fitLimit(text, limit) {
+      const max = getMaxLength(limit);
+      let value = text
+        .replace(/，可立即/g, "，可")
+        .replace(/，请立即/g, "，请")
+        .replace(/方便下次找到喜欢的商品/g, "方便下次查找")
+        .replace(/预约快递上门取件/g, "预约上门取件")
+        .replace(/快速扫码识别商品/g, "快速扫码")
+        .replace(/夏天出门更防晒/g, "出门更防晒")
+        .replace(/继续完成付款/g, "继续付款")
+        .replace(/[，,。；;：:、\s]+$/g, "")
+        .trim();
+      if (!max || value.length <= max) return value;
+
+      const clauses = value.split(/[，；。]/).map((item) => item.trim()).filter(Boolean);
+      const firstClause = clauses.find((item) => item.length <= max);
+      return firstClause || "";
     }
 
     function uniqueList(items) {
@@ -981,16 +997,77 @@
       return normalizeCopy(source) || "这项内容";
     }
 
+    function inferEvent(source, core) {
+      const normalized = normalizeCopy(source)
+        .replace(/^系统(?:出现)?异常[，,]?/, "")
+        .replace(/^当前/, "")
+        .trim();
+      const failure = normalized.match(/([^，。；]{2,18}(?:失败|错误|不可用|未开启|已失效))/);
+      if (failure) return failure[1].replace(/^你的/, "");
+      if (/网络/.test(source)) return "网络连接失败";
+      if (/失败|错误|异常/.test(source) && core && core !== "这项内容") return `${core}失败`;
+      return normalized || `${core}暂时不可用`;
+    }
+
+    function namingCandidates(scenario, data) {
+      const evidence = `${data.source} ${data.context} ${data.benefit}`;
+      if (scenario.id === "function" && /浏览|看过|足迹/.test(evidence)) {
+        return [data.core, "浏览记录", "浏览足迹", "最近浏览"];
+      }
+      return scenario.templates.map((template) => fillTemplate(template, data));
+    }
+
     function fillTemplate(template, data) {
       return template
         .replaceAll("{core}", data.core)
         .replaceAll("{benefit}", data.benefit)
-        .replaceAll("{action}", data.action);
+        .replaceAll("{action}", data.action)
+        .replaceAll("{event}", data.event);
+    }
+
+    function scoreSuggestion(text, data, index, category, scenario) {
+      const evidence = `${data.source} ${data.context} ${data.core} ${data.benefit} ${data.action}`;
+      const benefitSignal = fitLimit(data.benefit, data.limit);
+      let score = 10 - index * 0.2;
+      if (data.core && text.includes(data.core)) score += 8;
+      if (data.event && text.includes(data.event)) score += 8;
+      const benefitWeight = scenario.id === "empty" ? 3 : 7;
+      if (data.benefit && text.includes(data.benefit)) score += benefitWeight;
+      else if (benefitSignal && text.includes(benefitSignal)) score += Math.max(2, benefitWeight - 1);
+      const actionWeight = scenario.id === "empty" ? 7 : (scenario.id === "scene_seed" ? 1 : 5);
+      if (data.action && text.includes(data.action)) score += actionWeight;
+      if (scenario.id === "scene_seed" && text.startsWith(data.action)) score -= 3;
+      if (/已到账|已通过|已提交|失败|为空|未开启/.test(text)) score += 2;
+      if (/OK|平台|后台流转|错误码/.test(text)) score -= 8;
+      ["新手", "周末", "限时", "手慢", "恭喜"].forEach((word) => {
+        if (text.includes(word) && !evidence.includes(word)) score -= 6;
+      });
+      const max = getMaxLength(data.limit);
+      if (max && text.length > max) score -= 20;
+      return score;
     }
 
     function buildSuggestions(category, scenario, data) {
-      const suggestions = scenario.templates.map((template) => fitLimit(fillTemplate(template, data), data.limit));
-      return uniqueList(suggestions).slice(0, 4);
+      let rawSuggestions;
+      if (category.id === "naming") {
+        rawSuggestions = namingCandidates(scenario, data);
+      } else if (scenario.id === "empty") {
+        rawSuggestions = [
+          `${data.core}还是空的，${data.action}`,
+          `${data.core}还是空的哦`,
+          `${data.action}，${data.benefit}`,
+          `把喜欢的商品放进${data.core}，${data.benefit}`
+        ];
+      } else {
+        rawSuggestions = scenario.templates.map((template) => fillTemplate(template, data));
+      }
+
+      const suggestions = uniqueList(rawSuggestions.map((item) => fitLimit(item, data.limit)).filter(Boolean));
+      return suggestions
+        .map((text, index) => ({ text, score: scoreSuggestion(text, data, index, category, scenario) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 4)
+        .map((item) => item.text);
     }
 
     function renderCategories() {
@@ -1030,8 +1107,11 @@
         core: inferCore(source, context, keepInput.value),
         benefit: benefitInput.value.trim() || scene.sample.benefit,
         action: actionInput.value.trim() || scene.sample.action,
+        source,
+        context,
         limit
       };
+      data.event = inferEvent(source, data.core);
       const suggestions = buildSuggestions(current, scene, data);
       const recommendationLines = suggestions.map((item, index) => `${index + 1}. ${item}`).join("\n");
       const ruleLines = scene.rules.map((rule) => `- ${rule}`).join("\n");
