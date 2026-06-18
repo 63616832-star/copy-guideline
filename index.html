@@ -969,6 +969,7 @@
 
     function normalizeCopy(source) {
       return source
+        .replace(/到帐/g, "到账")
         .replace(/错误代码[：:]?\s*[a-zA-Z0-9xX._-]+/g, "")
         .replace(/由于您的?错误操作[，,]?/g, "")
         .replace(/实际结算价以详情页为准/g, "到手价以下单页为准")
@@ -980,6 +981,24 @@
         .replace(/买买买/g, "去看看")
         .replace(/[，,。；;：:、\s]+$/g, "")
         .trim();
+    }
+
+    function inferArrival(source, context) {
+      const text = normalizeCopy(`${source} ${context}`);
+      const match = text.match(/(退款|货款|款项|钱)?(?:预计|将会|将|会)?(?:在)?\s*(\d+\s*(?:个)?(?:工作日|天|小时|分钟))(?:之)?后(?:可)?到账/);
+      if (!match) return null;
+      const originalSubject = match[1] || "";
+      const subject = originalSubject === "退款" || originalSubject === "货款" ? originalSubject : "款项";
+      return { subject, time: match[2].replace(/\s+/g, "") };
+    }
+
+    function arrivalCandidates(arrival) {
+      return [
+        `${arrival.subject}预计${arrival.time}后到账`,
+        `预计${arrival.time}后到账`,
+        `${arrival.subject}将在${arrival.time}后到账`,
+        `预计${arrival.time}后收到${arrival.subject}`
+      ];
     }
 
     function inferCore(source, context, keep) {
@@ -1105,7 +1124,9 @@
 
     function buildSuggestions(category, scenario, data) {
       let rawSuggestions;
-      if (category.id === "marketing" && data.downloadTarget) {
+      if (category.id === "service" && data.arrival) {
+        rawSuggestions = arrivalCandidates(data.arrival);
+      } else if (category.id === "marketing" && data.downloadTarget) {
         rawSuggestions = downloadCampaignCandidates(data);
       } else if (category.id === "marketing" && data.offer && /优惠券|红包|补贴|券后|领券/.test(`${data.source} ${data.context} ${data.benefit}`)) {
         rawSuggestions = marketingClaimCandidates(data);
@@ -1165,24 +1186,28 @@
       const limit = limitInput.value.trim() || "无明确限制";
       const downloadTarget = inferDownloadTarget(source);
       const reward = inferReward(source, context);
+      const arrival = inferArrival(source, context);
       if (current.id === "marketing" && downloadTarget) {
         scene = current.scenarios.find((item) => item.id === "operation") || scene;
       } else if (current.id === "marketing" && /优惠券|红包|补贴|券后|领券/.test(`${source} ${context} ${benefitInput.value}`)) {
         scene = current.scenarios.find((item) => item.id === "subsidy") || scene;
       }
       const data = {
-        core: inferCore(source, context, keepInput.value),
-        benefit: downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit),
-        action: downloadTarget ? "下载" : (actionInput.value.trim() || scene.sample.action),
+        core: arrival ? arrival.subject : inferCore(source, context, keepInput.value),
+        benefit: arrival ? `${arrival.time}后到账` : (downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit)),
+        action: arrival ? "无需操作" : (downloadTarget ? "下载" : (actionInput.value.trim() || scene.sample.action)),
         source,
         context,
         downloadTarget,
         reward,
+        arrival,
         limit
       };
       data.offer = inferOffer(source, context, data.benefit);
       data.channel = inferChannel(source, context);
-      data.required = data.downloadTarget
+      data.required = data.arrival
+        ? `${data.arrival.subject}、${data.arrival.time}后到账`
+        : data.downloadTarget
         ? [data.downloadTarget, data.reward].filter(Boolean).join("、")
         : data.offer
         ? [data.channel, data.offer].filter(Boolean).join("、")
