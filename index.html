@@ -999,13 +999,17 @@
 
     function inferOffer(source, context, benefit) {
       const text = `${source} ${context} ${benefit}`;
-      const match = text.match(/\d+(?:\.\d+)?\s*元优惠券|\d+(?:\.\d+)?\s*元红包|优惠券|红包/);
+      const claimedOffer = text.match(/(?:领|领取)\s*([^，,。；\s]{2,16}(?:优惠券|红包))/i);
+      if (claimedOffer) return claimedOffer[1].replace(/\s+/g, "");
+      const match = text.match(/\d+(?:\.\d+)?\s*元优惠券|\d+(?:\.\d+)?\s*元红包|[^，,。；\s]{2,12}优惠券|优惠券|红包/);
       return match ? match[0].replace(/\s+/g, "") : "";
     }
 
     function inferChannel(source, context) {
       const text = `${source} ${context}`;
-      const match = text.match(/AI购(?:助手)?|小时购|PLUS|京东直播/);
+      const aiMatch = text.match(/ai购(?:助手)?/i);
+      if (aiMatch) return aiMatch[0].includes("助手") ? "AI购助手" : "AI购";
+      const match = text.match(/小时购|PLUS|京东直播/);
       return match ? match[0] : "";
     }
 
