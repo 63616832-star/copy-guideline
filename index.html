@@ -1027,6 +1027,27 @@
       ];
     }
 
+    function inferDownloadTarget(source) {
+      const match = source.match(/下载\s*([^，,。；\s]{2,12})/);
+      return match ? match[1] : "";
+    }
+
+    function inferReward(source, context) {
+      const text = `${source} ${context}`;
+      const match = text.match(/领(?:取)?\s*([^，,。；\s]{2,12})/);
+      return match ? match[1] : "";
+    }
+
+    function downloadCampaignCandidates(data) {
+      const reward = data.reward || "专属好礼";
+      return [
+        `下载${data.downloadTarget}，领取${reward}`,
+        `下载${data.downloadTarget}，${reward}等你领`,
+        `立即下载${data.downloadTarget}，领取${reward}`,
+        `${data.downloadTarget}，下载即领${reward}`
+      ];
+    }
+
     function inferEvent(source, core) {
       const normalized = normalizeCopy(source)
         .replace(/^系统(?:出现)?异常[，,]?/, "")
@@ -1062,6 +1083,8 @@
       if (data.core && text.includes(data.core)) score += 8;
       if (data.offer && text.includes(data.offer)) score += 9;
       if (data.channel && text.includes(data.channel)) score += 6;
+      if (data.downloadTarget && text.includes(data.downloadTarget)) score += 8;
+      if (data.reward && text.includes(data.reward)) score += 8;
       if (data.event && text.includes(data.event)) score += 8;
       const benefitWeight = scenario.id === "empty" ? 3 : 7;
       if (data.benefit && text.includes(data.benefit)) score += benefitWeight;
@@ -1081,7 +1104,9 @@
 
     function buildSuggestions(category, scenario, data) {
       let rawSuggestions;
-      if (category.id === "marketing" && data.offer && /领|领取|优惠券|红包/.test(`${data.source} ${data.context} ${data.benefit}`)) {
+      if (category.id === "marketing" && data.downloadTarget) {
+        rawSuggestions = downloadCampaignCandidates(data);
+      } else if (category.id === "marketing" && data.offer && /优惠券|红包|补贴|券后|领券/.test(`${data.source} ${data.context} ${data.benefit}`)) {
         rawSuggestions = marketingClaimCandidates(data);
       } else if (category.id === "naming") {
         rawSuggestions = namingCandidates(scenario, data);
@@ -1137,20 +1162,28 @@
       const source = copyInput.value.trim();
       const context = contextInput.value.trim();
       const limit = limitInput.value.trim() || "无明确限制";
-      if (current.id === "marketing" && /领|领取|优惠券|红包/.test(`${source} ${context} ${benefitInput.value}`)) {
+      const downloadTarget = inferDownloadTarget(source);
+      const reward = inferReward(source, context);
+      if (current.id === "marketing" && downloadTarget) {
+        scene = current.scenarios.find((item) => item.id === "operation") || scene;
+      } else if (current.id === "marketing" && /优惠券|红包|补贴|券后|领券/.test(`${source} ${context} ${benefitInput.value}`)) {
         scene = current.scenarios.find((item) => item.id === "subsidy") || scene;
       }
       const data = {
         core: inferCore(source, context, keepInput.value),
-        benefit: benefitInput.value.trim() || scene.sample.benefit,
-        action: actionInput.value.trim() || scene.sample.action,
+        benefit: downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit),
+        action: downloadTarget ? "下载" : (actionInput.value.trim() || scene.sample.action),
         source,
         context,
+        downloadTarget,
+        reward,
         limit
       };
       data.offer = inferOffer(source, context, data.benefit);
       data.channel = inferChannel(source, context);
-      data.required = data.offer
+      data.required = data.downloadTarget
+        ? [data.downloadTarget, data.reward].filter(Boolean).join("、")
+        : data.offer
         ? [data.channel, data.offer].filter(Boolean).join("、")
         : data.core;
       data.event = inferEvent(source, data.core);
