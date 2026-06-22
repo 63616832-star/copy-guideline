@@ -151,23 +151,17 @@
 
     .layout {
       display: grid;
-      grid-template-columns: 240px minmax(0, 1fr) 336px;
+      grid-template-columns: 240px minmax(0, 1fr);
       min-height: calc(100vh - 156px);
     }
 
-    .sidebar,
-    .rightbar {
+    .sidebar {
       background: rgba(245, 245, 244, 0.62);
     }
 
     .sidebar {
       padding: 26px 22px;
       border-right: 1px solid var(--line);
-    }
-
-    .rightbar {
-      padding: 26px 24px;
-      border-left: 1px solid var(--line);
     }
 
     .nav-title,
@@ -272,8 +266,7 @@
     }
 
     .editor-card,
-    .result-card,
-    .rule-card {
+    .result-card {
       border: 1px solid var(--line-soft);
       border-radius: var(--radius-xl);
       background: var(--card);
@@ -347,31 +340,9 @@
       margin-top: 18px;
     }
 
-    .rule-card,
     .result-card {
-      padding: 18px;
-    }
-
-    .rule-card + .result-card {
-      margin-top: 16px;
-    }
-
-    .rule-list {
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 8px;
-      list-style: none;
-    }
-
-    .rule-list li {
-      border: 1px solid var(--line-soft);
-      border-radius: 14px;
-      background: #f8f8f7;
-      padding: 10px 11px;
-      color: #4e5156;
-      font-size: 12px;
-      line-height: 1.55;
+      margin-top: 20px;
+      padding: 24px;
     }
 
     .result-header {
@@ -383,8 +354,8 @@
     }
 
     .result-box {
-      min-height: 352px;
-      max-height: calc(100vh - 344px);
+      min-height: 260px;
+      max-height: none;
       overflow: auto;
       white-space: pre-wrap;
       border: 1px solid var(--line-soft);
@@ -444,25 +415,6 @@
         grid-template-columns: 220px minmax(0, 1fr);
       }
 
-      .rightbar {
-        grid-column: 1 / -1;
-        border-left: 0;
-        border-top: 1px solid var(--line);
-      }
-
-      .rightbar {
-        display: grid;
-        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-        gap: 16px;
-      }
-
-      .rule-card + .result-card {
-        margin-top: 0;
-      }
-
-      .result-box {
-        max-height: none;
-      }
     }
 
     @media (max-width: 760px) {
@@ -488,8 +440,7 @@
         padding-right: 0;
       }
 
-      .layout,
-      .rightbar {
+      .layout {
         grid-template-columns: 1fr;
       }
 
@@ -499,8 +450,7 @@
       }
 
       .workspace,
-      .sidebar,
-      .rightbar {
+      .sidebar {
         padding: 18px;
       }
 
@@ -584,13 +534,6 @@
           </div>
 
         </div>
-      </section>
-
-      <aside class="rightbar">
-        <section class="rule-card">
-          <h2 class="panel-title" id="ruleTitle">规范要点</h2>
-          <ul class="rule-list" id="ruleList"></ul>
-        </section>
 
         <section class="result-card">
           <div class="result-header">
@@ -599,7 +542,7 @@
           </div>
           <div class="result-box empty" id="resultBox">生成后，这里会直接出现可用的优化文案。</div>
         </section>
-      </aside>
+      </section>
     </main>
   </div>
 
@@ -850,8 +793,6 @@
 
     const categoryList = document.getElementById("categoryList");
     const sceneSelect = document.getElementById("sceneSelect");
-    const ruleTitle = document.getElementById("ruleTitle");
-    const ruleList = document.getElementById("ruleList");
     const copyInput = document.getElementById("copyInput");
     const contextInput = document.getElementById("contextInput");
     const limitInput = document.getElementById("limitInput");
@@ -1155,9 +1096,6 @@
       if (keepSelected && current.scenarios.some((scene) => scene.name === selected)) {
         sceneSelect.value = selected;
       }
-      const scene = activeScenario();
-      ruleTitle.textContent = `${current.name} / ${scene.name}`;
-      ruleList.innerHTML = [current.principle, ...scene.rules].map((rule) => `<li>${escapeHtml(rule)}</li>`).join("");
     }
 
     function generatePrompt() {
