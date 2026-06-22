@@ -295,7 +295,6 @@
       font-weight: 760;
     }
 
-    select,
     input,
     textarea {
       width: 100%;
@@ -307,10 +306,113 @@
       transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     }
 
-    select,
     input {
       height: 48px;
       padding: 0 14px;
+    }
+
+    .custom-select {
+      position: relative;
+    }
+
+    .scene-native {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .select-trigger {
+      width: 100%;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f8f8f7;
+      padding: 0 14px;
+      color: var(--ink);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .select-trigger:hover {
+      border-color: #d1d3d6;
+      background: #fff;
+    }
+
+    .select-trigger:focus-visible,
+    .select-trigger[aria-expanded="true"] {
+      outline: none;
+      border-color: #bfc1c4;
+      background: #fff;
+      box-shadow: 0 0 0 5px var(--focus);
+    }
+
+    .select-chevron {
+      color: #777a7f;
+      font-size: 15px;
+      line-height: 1;
+      transition: transform 0.18s ease;
+    }
+
+    .select-trigger[aria-expanded="true"] .select-chevron {
+      transform: rotate(180deg);
+    }
+
+    .select-popover {
+      position: absolute;
+      z-index: 30;
+      top: calc(100% + 8px);
+      right: 0;
+      left: 0;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 18px 46px rgba(18, 18, 18, 0.14);
+      padding: 6px;
+    }
+
+    .select-popover[hidden] {
+      display: none;
+    }
+
+    .select-list {
+      max-height: 232px;
+      overflow-y: auto;
+      display: grid;
+      gap: 3px;
+    }
+
+    .select-option {
+      width: 100%;
+      min-height: 42px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      padding: 9px 12px;
+      color: #35373b;
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .select-option:hover,
+    .select-option:focus-visible {
+      outline: none;
+      background: #f1f1f0;
+    }
+
+    .select-option[aria-selected="true"] {
+      background: #111;
+      color: #fff;
+      font-weight: 720;
     }
 
     textarea {
@@ -325,7 +427,6 @@
       font-size: 16px;
     }
 
-    select:focus,
     input:focus,
     textarea:focus {
       border-color: #bfc1c4;
@@ -499,8 +600,17 @@
         <div class="editor-card">
           <div class="form-grid">
             <div class="field">
-              <label for="sceneSelect">具体场景</label>
-              <select id="sceneSelect"></select>
+              <label for="sceneTrigger">具体场景</label>
+              <div class="custom-select" id="scenePicker">
+                <button class="select-trigger" id="sceneTrigger" type="button" aria-haspopup="listbox" aria-expanded="false">
+                  <span id="sceneValue"></span>
+                  <span class="select-chevron" aria-hidden="true">⌄</span>
+                </button>
+                <div class="select-popover" id="scenePopover" hidden>
+                  <div class="select-list" id="sceneList" role="listbox" aria-label="具体场景"></div>
+                </div>
+                <select class="scene-native" id="sceneSelect" tabindex="-1" aria-hidden="true"></select>
+              </div>
             </div>
             <div class="field">
               <label for="limitInput">位置或字数限制</label>
@@ -793,6 +903,11 @@
 
     const categoryList = document.getElementById("categoryList");
     const sceneSelect = document.getElementById("sceneSelect");
+    const scenePicker = document.getElementById("scenePicker");
+    const sceneTrigger = document.getElementById("sceneTrigger");
+    const sceneValue = document.getElementById("sceneValue");
+    const scenePopover = document.getElementById("scenePopover");
+    const sceneList = document.getElementById("sceneList");
     const copyInput = document.getElementById("copyInput");
     const contextInput = document.getElementById("contextInput");
     const limitInput = document.getElementById("limitInput");
@@ -1096,6 +1211,26 @@
       if (keepSelected && current.scenarios.some((scene) => scene.name === selected)) {
         sceneSelect.value = selected;
       }
+      renderSceneMenu();
+    }
+
+    function renderSceneMenu() {
+      const current = activeCategory();
+      sceneValue.textContent = sceneSelect.value;
+      sceneList.innerHTML = current.scenarios.map((scene) => `
+        <button class="select-option" type="button" role="option" data-value="${escapeHtml(scene.name)}" aria-selected="${scene.name === sceneSelect.value}">
+          ${escapeHtml(scene.name)}
+        </button>
+      `).join("");
+    }
+
+    function setSceneMenuOpen(open, focusSelected = false) {
+      scenePopover.hidden = !open;
+      sceneTrigger.setAttribute("aria-expanded", String(open));
+      if (open && focusSelected) {
+        const selected = sceneList.querySelector('[aria-selected="true"]');
+        if (selected) selected.focus();
+      }
     }
 
     function generatePrompt() {
@@ -1215,6 +1350,46 @@ ${recommendationLines}
       if (!resultBox.classList.contains("empty")) {
         generatePrompt();
       }
+    });
+
+    sceneTrigger.addEventListener("click", () => {
+      setSceneMenuOpen(scenePopover.hidden, true);
+    });
+
+    sceneTrigger.addEventListener("keydown", (event) => {
+      if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+        event.preventDefault();
+        setSceneMenuOpen(true, true);
+      }
+      if (event.key === "Escape") setSceneMenuOpen(false);
+    });
+
+    sceneList.addEventListener("click", (event) => {
+      const option = event.target.closest(".select-option");
+      if (!option) return;
+      sceneSelect.value = option.dataset.value;
+      sceneSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      setSceneMenuOpen(false);
+      sceneTrigger.focus();
+    });
+
+    sceneList.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        setSceneMenuOpen(false);
+        sceneTrigger.focus();
+        return;
+      }
+      if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
+      event.preventDefault();
+      const options = [...sceneList.querySelectorAll(".select-option")];
+      const currentIndex = options.indexOf(document.activeElement);
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      const nextIndex = (currentIndex + direction + options.length) % options.length;
+      options[nextIndex].focus();
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!scenePicker.contains(event.target)) setSceneMenuOpen(false);
     });
 
     document.getElementById("generateBtn").addEventListener("click", generatePrompt);
