@@ -1063,6 +1063,89 @@
       return match ? match[0] : "";
     }
 
+    function inferTouchpointRole(limit, context, source) {
+      const text = `${limit} ${context} ${source}`;
+      if (/会场头图|头图|banner|Banner/.test(text)) return "头图定调";
+      if (/楼层|频道|入口|导流|清单|榜单/.test(text)) return "分类导流";
+      if (/商品卡|主图|商详|卖点|推荐理由/.test(text)) return "商品转化";
+      if (/Push|push|弹窗|Toast|toast|消息提醒/.test(text)) return "即时触达";
+      if (/权益|规则|说明|服务承诺/.test(text)) return "权益解释";
+      if (/按钮/.test(text)) return "操作指令";
+      return "信息告知";
+    }
+
+    function analyzeCommerceRisk(source, context, keepTerms) {
+      const text = `${source} ${context}`;
+      const groups = [
+        { label: "绝对化或无证据领先", pattern: /全网最低|历史最低|最低价|销量第一|好评第一|行业第一|唯一|顶级|极致|完美|无敌|100%|国家级|特效/g },
+        { label: "过度服务承诺", pattern: /必达|必赔|无条件|随时退|永久保修|保证有效|一定见效/g },
+        { label: "功效或医疗暗示", pattern: /治疗|治愈|康复|矫正|控糖|减脂|抗衰|助眠|养胃|提升免疫力|增强免疫力|缓解疼痛|修复屏障/g }
+      ];
+      const hits = groups.flatMap((group) => {
+        const matches = text.match(group.pattern) || [];
+        return matches.map((term) => ({ label: group.label, term }));
+      });
+      const evidence = /活动规则|价格口径|服务规则|检测报告|认证编号|批准文号|数据来源|以.{0,10}为准|可展示\s*\d+%/.test(text);
+      const riskyKeepTerms = keepTerms.filter((term) => hits.some((hit) => term.includes(hit.term) || hit.term.includes(term)));
+      return {
+        hits,
+        evidence,
+        blocked: hits.length > 0 && !evidence,
+        riskyKeepTerms,
+        note: !hits.length
+          ? ""
+          : evidence
+          ? `已识别“${uniqueList(hits.map((hit) => hit.term)).join("、")}”，上线前请核验对应证据。`
+          : `“${uniqueList(hits.map((hit) => hit.term)).join("、")}”缺少可核验依据，已改为安全表达。`
+      };
+    }
+
+    function inferSafeSubject(data) {
+      const safeKeep = data.keepTerms.find((term) => !data.risk.riskyKeepTerms.includes(term));
+      if (safeKeep) return safeKeep;
+      const match = `${data.source} ${data.context}`.match(/[^\s，,。；;]{2,12}(?:食品|饮品|器材|商品|服务|优惠券|红包)/);
+      return match ? match[0] : (data.core && data.core.length <= 14 ? data.core : "商品");
+    }
+
+    function complianceCandidates(data) {
+      if (data.risk.riskyKeepTerms.length) {
+        const terms = data.risk.riskyKeepTerms.join("、");
+        return [
+          `“${terms}”需补充可核验依据`,
+          `暂不建议使用“${terms}”`,
+          `核验规则后再使用“${terms}”`
+        ];
+      }
+      const subject = inferSafeSubject(data);
+      const hasHealthRisk = data.risk.hits.some((hit) => hit.label === "功效或医疗暗示");
+      if (hasHealthRisk) {
+        return [
+          `${subject}，适合日常使用`,
+          `了解${subject}的规格与使用方式`,
+          `${subject}，具体信息以商品页为准`,
+          `先看${subject}是否适合你`
+        ];
+      }
+      return [
+        `${subject}，具体权益以页面规则为准`,
+        `查看${subject}适用规则`,
+        `${subject}，下单前请确认适用范围`,
+        `了解${subject}的具体规则`
+      ];
+    }
+
+    function sceneSeedCandidates(data) {
+      const evidence = `${data.source} ${data.context}`;
+      const cue = ["新手", "周末", "通勤", "出游", "宅家", "送礼", "搬家"].find((item) => evidence.includes(item));
+      return uniqueList([
+        cue === "新手" ? `新手必看的${data.core}清单` : "",
+        cue && cue !== "新手" ? `${cue}，${data.core}先备好` : "",
+        `${data.core}清单，${data.benefit}`,
+        `选好${data.core}，${data.benefit}`,
+        `${data.benefit}，看看${data.core}`
+      ]);
+    }
+
     function marketingClaimCandidates(data) {
       const offer = data.offer || data.core;
       if (data.channel) {
@@ -1148,6 +1231,8 @@
       if (scenario.id === "scene_seed" && text.startsWith(data.action)) score -= 3;
       if (/已到账|已通过|已提交|失败|为空|未开启/.test(text)) score += 2;
       if (/OK|平台|后台流转|错误码/.test(text)) score -= 8;
+      if (/全网最低|历史最低|销量第一|必达|必赔|无条件|一定见效/.test(text)) score -= 24;
+      if ((text.match(/，/g) || []).length > 2) score -= 3;
       ["新手", "周末", "限时", "手慢", "恭喜"].forEach((word) => {
         if (text.includes(word) && !evidence.includes(word)) score -= 6;
       });
@@ -1158,7 +1243,9 @@
 
     function buildSuggestions(category, scenario, data) {
       let rawSuggestions;
-      if (data.notificationCampaign) {
+      if (data.risk.blocked) {
+        rawSuggestions = complianceCandidates(data);
+      } else if (data.notificationCampaign) {
         rawSuggestions = notificationCampaignCandidates(data.notificationCampaign);
       } else if (category.id === "service" && data.arrival) {
         rawSuggestions = arrivalCandidates(data.arrival);
@@ -1168,6 +1255,8 @@
         rawSuggestions = marketingClaimCandidates(data);
       } else if (category.id === "naming") {
         rawSuggestions = namingCandidates(scenario, data);
+      } else if (category.id === "marketing" && scenario.id === "scene_seed") {
+        rawSuggestions = sceneSeedCandidates(data);
       } else if (scenario.id === "empty") {
         rawSuggestions = [
           `${data.core}还是空的，${data.action}`,
@@ -1265,6 +1354,8 @@
         keepTerms,
         limit
       };
+      data.touchpointRole = inferTouchpointRole(limit, context, source);
+      data.risk = analyzeCommerceRisk(source, context, keepTerms);
       data.offer = inferOffer(source, context, data.benefit);
       data.channel = inferChannel(source, context);
       data.required = data.keepTerms.length
@@ -1281,7 +1372,12 @@
       data.event = inferEvent(source, data.core);
       const suggestions = buildSuggestions(current, scene, data);
       const recommendationLines = suggestions.map((item, index) => `${index + 1}. ${item}`).join("\n");
-      const ruleLines = scene.rules.map((rule) => `- ${rule}`).join("\n");
+      const ruleLines = [
+        `先按“${data.touchpointRole}”判断这段文案的任务。`,
+        ...scene.rules,
+        "候选文案使用不同策略，不只替换同义词。"
+      ].map((rule) => `- ${rule}`).join("\n");
+      const riskSection = data.risk.note ? `\n\n风险提示：${data.risk.note}` : "";
 
       resultBox.classList.remove("empty");
       resultBox.textContent =
@@ -1289,6 +1385,7 @@
 
 输入识别：
 - 必须保留：${data.required}
+- 触点角色：${data.touchpointRole}
 - 用户收益：${data.benefit}
 - 用户下一步：${data.action}
 - 位置限制：${limit}
@@ -1297,10 +1394,10 @@
 ${ruleLines}
 
 推荐文案：
-${recommendationLines}
+${recommendationLines}${riskSection}
 
 首选：${suggestions[0]}
-理由：保留核心信息“${data.required}”，优先说明用户收益“${data.benefit}”，并适配“${limit}”。
+理由：保留核心信息“${data.required}”，优先说明用户收益“${data.benefit}”，并适配“${data.touchpointRole}”和“${limit}”。
 
 自检：已按“简单、可靠、亲切”处理；必须保留的词为硬约束，用户下一步仅作为生成依据，不做机械拼接。`;
     }
