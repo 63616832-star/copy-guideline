@@ -1026,6 +1026,13 @@
       return { subject: "消息通知", reward: rewardMatch[1].replace(/\s+/g, "") };
     }
 
+    function inferMembershipSuccess(source, context) {
+      const text = normalizeCopy(`${source} ${context}`);
+      if (!/(成为|开通|升级|解锁).{0,8}(plus|PLUS|会员)|会员.{0,6}(成功|生效|已开通|已解锁)/i.test(text)) return null;
+      const hasPlus = /plus|PLUS/.test(text);
+      return { membership: hasPlus ? "PLUS会员" : "会员" };
+    }
+
     function notificationCampaignCandidates(campaign) {
       return [
         `开启消息通知，${campaign.reward}不错过`,
@@ -1035,12 +1042,22 @@
       ];
     }
 
+    function membershipSuccessCandidates(data) {
+      const membership = data.membership.membership;
+      return [
+        `恭喜你成为${membership}`,
+        `${membership}已开通`,
+        `你已成为${membership}`,
+        `${membership}权益已生效`
+      ];
+    }
+
     function inferCore(source, context, keep) {
       if (keep.trim()) return keep.trim();
       const text = `${source} ${context}`;
       const version = text.match(/京东\s*(\d+(?:\.\d+)*)\s*(?:版本|系统|版)?|((?:\d+(?:\.\d+)*))\s*(?:版本|系统|版)/);
       if (version) return `京东${version[1] || version[2]}`;
-      const coupon = text.match(/\d+(?:\.\d+)?\s*元优惠券|优惠券|红包|补贴|PLUS|AI购助手|浏览记录|定位服务|购物车|退款|退货申请|收货地址|问大家/);
+      const coupon = text.match(/\d+(?:\.\d+)?\s*元优惠券|优惠券|红包|补贴|PLUS|plus|AI购助手|浏览记录|定位服务|购物车|退款|退货申请|收货地址|问大家/);
       if (coupon) return coupon[0].replace(/\s+/g, "");
       const price = text.match(/(?:￥|¥)?\s*(\d+(?:\.\d+)?)\s*元/);
       if (price) return `${price[1]}元`;
@@ -1247,6 +1264,7 @@
       if (/已到账|已通过|已提交|失败|为空|未开启/.test(text)) score += 2;
       if (/OK|平台|后台流转|错误码/.test(text)) score -= 8;
       if (/全网最低|历史最低|销量第一|必达|必赔|无条件|一定见效/.test(text)) score -= 24;
+      if (/还是空的|加入喜欢|放进/.test(text) && !/空|暂无|没有|未找到/.test(evidence)) score -= 30;
       if ((text.match(/，/g) || []).length > 2) score -= 3;
       ["新手", "周末", "限时", "手慢", "恭喜"].forEach((word) => {
         if (text.includes(word) && !evidence.includes(word)) score -= 6;
@@ -1262,6 +1280,8 @@
         rawSuggestions = complianceCandidates(data);
       } else if (data.notificationCampaign) {
         rawSuggestions = notificationCampaignCandidates(data.notificationCampaign);
+      } else if (data.membership) {
+        rawSuggestions = membershipSuccessCandidates(data);
       } else if (category.id === "service" && data.arrival) {
         rawSuggestions = arrivalCandidates(data.arrival);
       } else if (category.id === "marketing" && data.downloadTarget) {
@@ -1350,24 +1370,29 @@
       const inferredBenefitTerms = inferConcreteBenefitTerms(source, context, benefitInput.value, reward);
       const keepTerms = uniqueList([...explicitKeepTerms, ...inferredBenefitTerms]);
       const notificationCampaign = inferNotificationCampaign(source, context);
+      const membership = inferMembershipSuccess(source, context);
       if (notificationCampaign) {
         current = categories.find((item) => item.id === "marketing") || current;
         scene = current.scenarios.find((item) => item.id === "subsidy") || current.scenarios[0];
+      } else if (membership) {
+        current = categories.find((item) => item.id === "emotion") || current;
+        scene = current.scenarios.find((item) => item.id === "personal_state") || current.scenarios[0];
       } else if (current.id === "marketing" && downloadTarget) {
         scene = current.scenarios.find((item) => item.id === "operation") || scene;
       } else if (current.id === "marketing" && /优惠券|红包|补贴|券后|领券/.test(`${source} ${context} ${benefitInput.value}`)) {
         scene = current.scenarios.find((item) => item.id === "subsidy") || scene;
       }
       const data = {
-        core: notificationCampaign ? notificationCampaign.subject : (arrival ? arrival.subject : inferCore(source, context, keepTerms[0] || "")),
-        benefit: notificationCampaign ? `领取${notificationCampaign.reward}` : (arrival ? `${arrival.time}后到账` : (downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit))),
-        action: actionInput.value.trim() || (notificationCampaign ? "开启消息通知" : (arrival ? "无需操作" : (downloadTarget ? "下载" : scene.sample.action))),
+        core: notificationCampaign ? notificationCampaign.subject : (membership ? membership.membership : (arrival ? arrival.subject : inferCore(source, context, keepTerms[0] || ""))),
+        benefit: notificationCampaign ? `领取${notificationCampaign.reward}` : (membership ? (benefitInput.value.trim() || "查看会员权益") : (arrival ? `${arrival.time}后到账` : (downloadTarget && reward ? `领取${reward}` : (benefitInput.value.trim() || scene.sample.benefit)))),
+        action: actionInput.value.trim() || (notificationCampaign ? "开启消息通知" : (membership ? "查看权益" : (arrival ? "无需操作" : (downloadTarget ? "下载" : scene.sample.action)))),
         source,
         context,
         downloadTarget,
         reward,
         arrival,
         notificationCampaign,
+        membership,
         keepTerms,
         limit
       };
@@ -1379,6 +1404,8 @@
         ? data.keepTerms.join("、")
         : data.notificationCampaign
         ? `${data.notificationCampaign.subject}、${data.notificationCampaign.reward}`
+        : data.membership
+        ? data.membership.membership
         : data.arrival
         ? `${data.arrival.subject}、${data.arrival.time}后到账`
         : data.downloadTarget
